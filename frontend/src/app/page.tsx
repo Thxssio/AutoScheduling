@@ -17,11 +17,8 @@ export default function Home() {
     },
   });
 
-
-
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    e.target.setCustomValidity('');
     setFormData((prevData) => ({
       ...prevData,
       [name]: value,
@@ -54,10 +51,6 @@ export default function Home() {
     }));
   };
 
-  const handleInvalid = (e: React.ChangeEvent<HTMLInputElement>) => {
-    e.target.setCustomValidity('Por favor, preencha este campo.');
-  };
-
   const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     console.log(formData);
@@ -70,141 +63,50 @@ export default function Home() {
     thursday: 'Quinta-feira',
     friday: 'Sexta-feira',
   };
+
   return (
-    <div className="flex items-center justify-center min-h-screen bg-blue-200 p-4">
-      <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl flex">
-        <div className="w-1/4 bg-blue-800 text-white rounded-l-lg p-4 flex flex-col items-center justify-center space-y-8">
-          <div className="flex flex-col items-center space-y-2">
-            <FaRegUser size={30} />
-            <span className="text-lg font-bold">1</span>
-          </div>
-          <div className="flex flex-col items-center space-y-2">
-            <FaLock size={30} />
-            <span className="text-lg font-bold">2</span>
-          </div>
-          <div className="flex flex-col items-center space-y-2">
-            <FaCalendarAlt size={30} />
-            <span className="text-lg font-bold">3</span>
-          </div>
-        </div>
-        <div className="w-3/4 p-8">
-          <h1 className="text-3xl font-bold mb-6 text-center text-blue-800">Agendamento de Refeições</h1>
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                Email de contato:
-              </label>
-              <input
-                type="email"
-                id="email"
-                name="email"
-                value={formData.email}
-                onChange={handleInputChange}
-                onInvalid={handleInvalid}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
-              />
-            </div>
-            <div>
-              <label htmlFor="matricula" className="block text-sm font-medium text-gray-700">
-                Matrícula do portal:
-              </label>
-              <input
-                type="text"
-                id="matricula"
-                name="matricula"
-                value={formData.matricula}
-                onChange={handleInputChange}
-                onInvalid={handleInvalid}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
-              />
-            </div>
-            <div>
-              <label htmlFor="senha" className="block text-sm font-medium text-gray-700">
-                Senha do portal:
-              </label>
-              <input
-                type="password"
-                id="senha"
-                name="senha"
-                value={formData.senha}
-                onChange={handleInputChange}
-                onInvalid={handleInvalid}
-                required
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm p-2"
-              />
-            </div>
-            <div>
-              <h3 className="text-lg font-medium leading-6 text-gray-900">Preferências de Refeições</h3>
-              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                {Object.keys(formData.meals).map((day) => (
-                  <div key={day} className="mt-4">
-                    <h4 className="text-md font-semibold">{dayLabels[day]}</h4>
-                    <div className="mt-2 flex justify-between">
-                      <label className="inline-flex items-center">
-                        <input
-                          type="radio"
-                          name={`${day}_ru`}
-                          value="1"
-                          checked={formData.meals[day].ru === '1'}
-                          onChange={(e) => handleRUChange(day, e.target.value)}
-                          className="form-radio"
-                        />
-                        <span className="ml-2">RU 1</span>
-                      </label>
-                      <label className="inline-flex items-center">
-                        <input
-                          type="radio"
-                          name={`${day}_ru`}
-                          value="2"
-                          checked={formData.meals[day].ru === '2'}
-                          onChange={(e) => handleRUChange(day, e.target.value)}
-                          className="form-radio"
-                        />
-                        <span className="ml-2">RU 2</span>
-                      </label>
-                    </div>
-                    <div className="flex flex-col space-y-2 mt-2">
-                      <label className="inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.meals[day].breakfast}
-                          onChange={() => handleCheckboxChange(day, 'breakfast')}
-                          disabled={formData.meals[day].ru === '2'}
-                          className="form-checkbox"
-                        />
-                        <span className="ml-2">Café da Manhã</span>
-                      </label>
-                      <label className="inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.meals[day].lunch}
-                          onChange={() => handleCheckboxChange(day, 'lunch')}
-                          className="form-checkbox"
-                        />
-                        <span className="ml-2">Almoço</span>
-                      </label>
-                      <label className="inline-flex items-center">
-                        <input
-                          type="checkbox"
-                          checked={formData.meals[day].dinner}
-                          onChange={() => handleCheckboxChange(day, 'dinner')}
-                          disabled={formData.meals[day].ru === '2'}
-                          className="form-checkbox"
-                        />
-                        <span className="ml-2">Jantar</span>
-                      </label>
-                    </div>
-                  </div>
-                ))}
+    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+      <div className="bg-white rounded-lg shadow-lg w-full max-w-4xl p-6">
+        <h1 className="text-3xl font-bold mb-4 text-center text-blue-800">Agendamento de Refeições</h1>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid grid-cols-3 gap-4">
+            <input type="email" id="email" name="email" placeholder="Email de contato" value={formData.email} onChange={handleInputChange} required className="col-span-3 p-2 border border-gray-300 rounded-md"/>
+            <input type="text" id="matricula" name="matricula" placeholder="Matrícula do portal" value={formData.matricula} onChange={handleInputChange} required className="col-span-3 p-2 border border-gray-300 rounded-md"/>
+            <input type="password" id="senha" name="senha" placeholder="Senha do portal" value={formData.senha} onChange={handleInputChange} required className="col-span-3 p-2 border border-gray-300 rounded-md"/>
+            {Object.keys(formData.meals).map((day) => (
+              <div key={day} className="col-span-1 bg-blue-50 p-4 rounded-lg">
+                <h3 className="font-semibold text-lg mb-3">{dayLabels[day]}</h3>
+                <div className="flex items-center mb-3">
+                  <label className="flex items-center mr-4">
+                    <input type="radio" name={`${day}_ru`} value="1" checked={formData.meals[day].ru === '1'} onChange={(e) => handleRUChange(day, e.target.value)} className="mr-2 form-radio text-blue-600"/>
+                    RU 1
+                  </label>
+                  <label className="flex items-center">
+                    <input type="radio" name={`${day}_ru`} value="2" checked={formData.meals[day].ru === '2'} onChange={(e) => handleRUChange(day, e.target.value)} className="mr-2 form-radio text-blue-600"/>
+                    RU 2
+                  </label>
+                </div>
+                <div className="flex flex-col space-y-1">
+                  <label className="flex items-center">
+                    <input type="checkbox" checked={formData.meals[day].breakfast} onChange={() => handleCheckboxChange(day, 'breakfast')} disabled={formData.meals[day].ru === '2'} className="mr-2 form-checkbox text-blue-600"/>
+                    Café da Manhã
+                  </label>
+                  <label className="flex items-center">
+                    <input type="checkbox" checked={formData.meals[day].lunch} onChange={() => handleCheckboxChange(day, 'lunch')} className="mr-2 form-checkbox text-blue-600"/>
+                    Almoço
+                  </label>
+                  <label className="flex items-center">
+                    <input type="checkbox" checked={formData.meals[day].dinner} onChange={() => handleCheckboxChange(day, 'dinner')} disabled={formData.meals[day].ru === '2'} className="mr-2 form-checkbox text-blue-600"/>
+                    Jantar
+                  </label>
+                </div>
               </div>
-            </div>
-            <button type="submit" className="w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500">
-              Enviar
-            </button>
-          </form> 
-        </div>
+            ))}
+          </div>
+          <button type="submit" className="mt-4 w-full inline-flex items-center justify-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+            Enviar
+          </button>
+        </form>
       </div>
     </div>
   );
