@@ -1,47 +1,52 @@
 import sys
-import requests
-import yaml
-import pytz
 from argparse import ArgumentParser
 from datetime import datetime, timedelta
-import logging
 
-BASE_URL = 'https://portal.ufsm.br/mobile/webservice'
+import pytz
+import requests
+import yaml
 
-# Configuração de logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+BASE_URL = 'https://portal.ufsm.br/mobile/webservice/flutter'
+
 
 def read_config() -> dict:
-    with open('settings.yaml', 'r') as document: 
+    with open('settings.yaml', 'r') as document:
         return yaml.safe_load(document)
 
 def is_weekday(date: datetime, weekday: str) -> bool:
     return date.strftime('%a') == weekday
 
-def resolve_restaurant_id(restaurant: int) -> int:
-    return 41 if restaurant == 2 else restaurant
+def resolve_restaurant_id(restaurant: int):
+    match restaurant:
+        case 2:
+            return 41
+        case _:
+            return restaurant
 
 def login(config, username: str, password: str) -> str:
-    logging.info(f"Attempting login for user: {username}")
     response = requests.post(
-        f'{BASE_URL}/generateToken',
+        f'{BASE_URL}/generateTokenJwt',
         json={
             'appName': config['environment']['app'],
             'deviceId': config['environment']['device-id'],
             'deviceInfo': config['environment']['device-info'],
             'messageToken': config['environment']['message-token'],
             'login': username,
-            'senha': password
+            'senha': password,
+        },
+        headers={
+            'User-Agent': 'Dart/3.12 (dart:io)',
+            'x-ufsm-version': '50600',
+            'Content-Type': 'application/json; charset=UTF-8'
         }
     )
 
     data = response.json()
 
     if data['error']:
-        logging.error(f"Login error: {data['mensagem']}")
-        raise Exception(data['mensagem'])
+        raise Exception(data.get('mensagem', 'Erro no login'))
     
-    return data['token']
+    return data['body']['accessToken']
 
 def schedule_meal(config, token: str, start: datetime, end: datetime, options: dict) -> list:
     payload = {
@@ -52,52 +57,82 @@ def schedule_meal(config, token: str, start: datetime, end: datetime, options: d
         'tiposRefeicoes': []
     }
 
-    for key, (item_id, desc) in [('coffee', (1, 'Café')), ('lunch', (2, 'Almoço')), ('dinner', (3, 'Janta'))]:
-        if options.get(key):
-            payload['tiposRefeicoes'].append({
-                'descricao': desc,
-                'error': False,
-                'item': item_id,
-                'itemId': item_id,
-                'selecionado': True
-            })
+    # O payload precisa ser enviado como uma lista de inteiros.
+    if options['coffee']:
+        payload['tiposRefeicoes'].append(1)
+
+    if options['lunch']:
+        payload['tiposRefeicoes'].append(2)
+
+    if options['dinner']:
+        payload['tiposRefeicoes'].append(3)
 
     response = requests.post(
         f'{BASE_URL}/ru/agendaRefeicoes',
         json=payload,
-        headers={'X-UFSM-Device-ID': config['environment']['device-id'], 'X-UFSM-Access-Token': token}
+        headers={
+            'User-Agent': 'Dart/3.12 (dart:io)',
+            'x-ufsm-version': '50600',
+            'X-UFSM-Device-ID': config['environment']['device-id'],
+            'Authorization': f'Bearer {token}',
+            'Content-Type': 'application/json; charset=UTF-8'
+        }
     )
-    return response.json()
+
+    return response.json()['body']
+
+def find_schedules(config, date):
+    filtered_schedules = filter(
+        lambda schedule: is_weekday(date, schedule['weekday']),
+        config['schedules']
+    )
+
+    return list(filtered_schedules)
 
 def main():
-    parser = ArgumentParser(description='Automatically schedule meals at UFSM.')
+    parser = ArgumentParser(
+        prog='ruina',
+        description='Agenda automaticamente as refeições do RU da UFSM.'
+    )
     parser.add_argument('-u', '--username', required=True, help='Your UFSM app username.')
     parser.add_argument('-p', '--password', required=True, help='Your UFSM app password.')
     args = parser.parse_args()
 
-    logging.info('Reading configuration...')
+    print('Lendo configuração...')
     config = read_config()
 
+    print('Procurando refeições para serem agendadas amanhã...')
     now = datetime.now(pytz.timezone('Brazil/East'))
-    tomorrow = now + timedelta(days=1)
-    tomorrow_schedules = [s for s in config['schedules'] if is_weekday(tomorrow, s['weekday'])]
+    tomorrow = now + timedelta(1)
+    tomorrow_schedules = find_schedules(config, tomorrow)
 
-    if tomorrow_schedules:
-        logging.info(f'Found {len(tomorrow_schedules)} meals to be scheduled.')
+    if len(tomorrow_schedules) != 0:
+        print(f'Encontrado {len(tomorrow_schedules)} refeição(s) para serem agendadas.')
+
         try:
-            logging.info('Logging in...')
+            print('Logando no aplicativo...')
             access_token = login(config, args.username, args.password)
             for schedule in tomorrow_schedules:
+                print(f"Agendando refeições para o RU {schedule['restaurant']}... ({schedule})")
+
                 statuses = schedule_meal(config, access_token, tomorrow, tomorrow, schedule)
+
                 for status in statuses:
                     date = datetime.strptime(status['dataRefAgendada'], '%Y-%m-%d %H:%M:%S')
-                    message = f"{date.strftime('%d/%m/%Y')} - RU {schedule['restaurant']} ({status['tipoRefeicao']}): "
-                    logging.info(message + ('Scheduled successfully.' if status['sucesso'] else f'Error: {status["impedimento"]}'))
-        except Exception as e:
-            logging.error(f'Error while scheduling: {e}')
+                    message = (
+                        f"{date.strftime('%d/%m/%Y')} - "
+                        f"RU {schedule['restaurant']} ({status['tipoRefeicao']}): "
+                    )
+
+                    if status['sucesso']:
+                        print(message + 'Agendado com sucesso.')
+                    else:
+                        print('[Erro] ' + message + status['impedimento'] + '.')
+        except Exception as exception:
+            print(f'Falha ao agendar: {str(exception)}')
             sys.exit(1)
     else:
-        logging.info('No meals to be scheduled for tomorrow.')
+        print('Não há nenhuma refeição para ser agendada amanhã.')
 
 if __name__ == '__main__':
     main()
