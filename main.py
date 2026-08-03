@@ -79,7 +79,15 @@ def schedule_meal(config, token: str, start: datetime, end: datetime, options: d
         }
     )
 
-    return response.json()['body']
+    body = response.json().get('body', [])
+
+    if isinstance(body, list):
+        return body
+
+    if isinstance(body, dict):
+        return [body]
+
+    return []
 
 def find_schedules(config, date):
     filtered_schedules = filter(
@@ -89,6 +97,18 @@ def find_schedules(config, date):
 
     return list(filtered_schedules)
 
+def find_schedules_in_range(config, start_date, days_ahead: int):
+    scheduled_days = []
+
+    for offset in range(1, days_ahead + 1):
+        target_date = start_date + timedelta(offset)
+        schedules = find_schedules(config, target_date)
+
+        if schedules:
+            scheduled_days.append((target_date, schedules))
+
+    return scheduled_days
+
 def main():
     parser = ArgumentParser(
         prog='ruina',
@@ -96,6 +116,12 @@ def main():
     )
     parser.add_argument('-u', '--username', required=True, help='Your UFSM app username.')
     parser.add_argument('-p', '--password', required=True, help='Your UFSM app password.')
+    parser.add_argument(
+        '--days-ahead',
+        type=int,
+        default=1,
+        help='Number of days ahead to scan. Default is 1 (tomorrow only).'
+    )
     args = parser.parse_args()
 
     print('Lendo configuração...')
@@ -103,36 +129,43 @@ def main():
 
     print('Procurando refeições para serem agendadas amanhã...')
     now = datetime.now(pytz.timezone('Brazil/East'))
-    tomorrow = now + timedelta(1)
-    tomorrow_schedules = find_schedules(config, tomorrow)
+    scheduled_days = find_schedules_in_range(config, now, args.days_ahead)
 
-    if len(tomorrow_schedules) != 0:
-        print(f'Encontrado {len(tomorrow_schedules)} refeição(s) para serem agendadas.')
+    if scheduled_days:
+        total_schedules = sum(len(schedules) for _, schedules in scheduled_days)
+        print(f'Encontrado {total_schedules} refeição(ões) para serem agendadas.')
 
         try:
             print('Logando no aplicativo...')
             access_token = login(config, args.username, args.password)
-            for schedule in tomorrow_schedules:
-                print(f"Agendando refeições para o RU {schedule['restaurant']}... ({schedule})")
+            for target_date, target_schedules in scheduled_days:
+                print(f'Agendando refeições para {target_date.strftime("%d/%m/%Y")}...')
 
-                statuses = schedule_meal(config, access_token, tomorrow, tomorrow, schedule)
+                for schedule in target_schedules:
+                    print(f"Agendando refeições para o RU {schedule['restaurant']}... ({schedule})")
 
-                for status in statuses:
-                    date = datetime.strptime(status['dataRefAgendada'], '%Y-%m-%d %H:%M:%S')
-                    message = (
-                        f"{date.strftime('%d/%m/%Y')} - "
-                        f"RU {schedule['restaurant']} ({status['tipoRefeicao']}): "
-                    )
+                    statuses = schedule_meal(config, access_token, target_date, target_date, schedule)
 
-                    if status['sucesso']:
-                        print(message + 'Agendado com sucesso.')
-                    else:
-                        print('[Erro] ' + message + status['impedimento'] + '.')
+                    if not statuses:
+                        print(f'Nenhuma resposta de agendamento para {target_date.strftime("%d/%m/%Y")}.')
+                        continue
+
+                    for status in statuses:
+                        date = datetime.strptime(status['dataRefAgendada'], '%Y-%m-%d %H:%M:%S')
+                        message = (
+                            f"{date.strftime('%d/%m/%Y')} - "
+                            f"RU {schedule['restaurant']} ({status['tipoRefeicao']}): "
+                        )
+
+                        if status['sucesso']:
+                            print(message + 'Agendado com sucesso.')
+                        else:
+                            print('[Erro] ' + message + status['impedimento'] + '.')
         except Exception as exception:
             print(f'Falha ao agendar: {str(exception)}')
             sys.exit(1)
     else:
-        print('Não há nenhuma refeição para ser agendada amanhã.')
+        print('Não há nenhuma refeição para ser agendada no período informado.')
 
 if __name__ == '__main__':
     main()
